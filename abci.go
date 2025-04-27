@@ -1,31 +1,27 @@
 package main
 
 import (
-	"log"
-	"net"
-
-	"github.com/tendermint/abci/types"
-	"github.com/tendermint/abci/server"
+    "log"
+    "github.com/tendermint/tendermint/abci/server"
+    abci "github.com/tendermint/tendermint/abci/types"
 )
 
-type Application struct {
-	types.BaseApplication
+type MyApplication struct {
+    abci.BaseApplication
 }
 
 func main() {
-	app := &Application{}
+    app := &MyApplication{}
 
-	// Set up ABCI server
-	srv, err := server.NewServer("tcp://127.0.0.1:26658", "socket", app)
-	if err != nil {
-		log.Fatalf("Error creating server: %v", err)
-	}
+    // Create a socket server listening at tcp://127.0.0.1:26658
+    s := server.NewSocketServer("tcp://127.0.0.1:26658", app)
+    err := s.Start()
+    if err != nil {
+        log.Fatalf("Failed to start ABCI server: %v", err)
+    }
 
-	srv.Start()
-	defer srv.Stop()
+    log.Println("ABCI server running at tcp://127.0.0.1:26658")
 
-	log.Println("ABCI server running on tcp://127.0.0.1:26658")
-
-	// Block forever
-	select {}
+    // Block forever
+    select {}
 }
