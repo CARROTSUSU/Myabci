@@ -9,15 +9,26 @@ import (
 	"github.com/tendermint/tendermint/libs/json"
 )
 
+// Struktur aplikasi RcpuCoin
 type RcpuCoinApp struct {
 	abci.BaseApplication
+	balances map[string]int // Penyimpanan dalam ingatan untuk baki akaun
 }
 
+// Fungsi untuk mencipta aplikasi RcpuCoin baru
 func NewRcpuCoinApp() *RcpuCoinApp {
-	return &RcpuCoinApp{}
+	app := &RcpuCoinApp{
+		balances: make(map[string]int),
+	}
+
+	// Menambah beberapa akaun permulaan dengan baki
+	app.balances["address1"] = 1000
+	app.balances["address2"] = 500
+
+	return app
 }
 
-// Menerima transaksi
+// Menerima dan memproses transaksi
 func (app *RcpuCoinApp) DeliverTx(tx []byte) abci.ResponseDeliverTx {
 	var transfer struct {
 		From   string `json:"from"`
@@ -25,6 +36,7 @@ func (app *RcpuCoinApp) DeliverTx(tx []byte) abci.ResponseDeliverTx {
 		Amount int    `json:"amount"`
 	}
 
+	// Mendekod transaksi
 	err := json.Unmarshal(tx, &transfer)
 	if err != nil {
 		return abci.ResponseDeliverTx{
@@ -33,30 +45,45 @@ func (app *RcpuCoinApp) DeliverTx(tx []byte) abci.ResponseDeliverTx {
 		}
 	}
 
-	// Logik untuk memindahkan RCPU Coin (contoh: update akaun penerima)
+	// Validasi jika penghantar ada baki yang mencukupi
+	if app.balances[transfer.From] < transfer.Amount {
+		return abci.ResponseDeliverTx{
+			Code: 1,
+			Log:  "Insufficient balance",
+		}
+	}
+
+	// Mengemas kini baki akaun
+	app.balances[transfer.From] -= transfer.Amount
+	app.balances[transfer.To] += transfer.Amount
+
+	// Log transaksi
 	fmt.Printf("Transfer %d RCPU Coin from %s to %s\n", transfer.Amount, transfer.From, transfer.To)
 
-	// Berikan response
+	// Menyediakan respons untuk transaksi yang berjaya
 	return abci.ResponseDeliverTx{
 		Code: 0,
 		Log:  "Transfer successful",
 	}
 }
 
-// Fungsi untuk aplikasi blok
+// Fungsi untuk mendapatkan informasi aplikasi
 func (app *RcpuCoinApp) Info(req abci.RequestInfo) abci.ResponseInfo {
+	// Menyediakan maklumat aplikasi
 	return abci.ResponseInfo{
 		Data:             "RCUCoin Blockchain",
 		Validators:       []abci.Validator{},
-		LatestBlockHash:  []byte{},
-		LatestAppHash:    []byte{},
+		LatestBlockHash:  []byte("latest-block-hash"), // Gantikan dengan hash terkini jika perlu
+		LatestAppHash:    []byte("latest-app-hash"),    // Gantikan dengan hash aplikasi terkini jika ada
 	}
 }
 
+// Fungsi utama untuk menjalankan aplikasi
 func main() {
+	// Cipta aplikasi baru
 	app := NewRcpuCoinApp()
 
-	// Jalankan server ABCI
+	// Mulakan server ABCI untuk aplikasi ini pada port :26658
 	server := abci.NewServer(":26658", app)
 	log.Fatal(server.Start())
 }
